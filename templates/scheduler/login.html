@@ -1,0 +1,72 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login — AI Faculty Scheduling System</title>
+  <link rel="stylesheet" href="{% static 'css/styles.css' %}" />
+</head>
+
+<body class="login-page">
+
+  <div class="login-card animate-in">
+    <!-- Logo -->
+    <div class="login-logo">
+      <div class="logo-circle">🎓</div>
+      <div class="login-title">Faculty Scheduling</div>
+      <div class="login-subtitle">AI-Based Intelligent Workload &amp; Scheduling System</div>
+    </div>
+
+    <!-- Messages -->
+    {% if messages %}
+    {% for message in messages %}
+    <div
+      class="alert alert-{% if message.tags == 'error' %}error{% elif message.tags == 'success' %}success{% else %}warning{% endif %}"
+      style="margin-bottom:16px;">
+      {{ message }}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <!-- Login Form -->
+    <form method="post" action="{% url 'login' %}">
+      {% csrf_token %}
+
+      <div class="form-group">
+        <label class="form-label">👤 Username</label>
+        <input type="text" name="username" class="form-control" placeholder="Enter your username" required autofocus>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">🔒 Password</label>
+        <input type="password" name="password" class="form-control" placeholder="Enter your password" required>
+      </div>
+
+      <button type="submit" class="btn btn-primary"
+        style="width:100%;justify-content:center;font-size:15px;padding:12px;">
+        🚀 Sign In
+      </button>
+    </form>
+
+    <!-- Demo credentials -->
+    <div
+      style="margin-top:24px;padding:16px;background:#f0f4f8;border:1px solid #cdd8e4;border-radius:10px;font-size:12px;color:var(--text-muted);">
+      <strong style="color:var(--accent);">🎯 Demo Credentials</strong><br>
+      <div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div>
+          <div style="color:var(--text);font-weight:600;">Admin</div>
+          <div>admin / admin123</div>
+        </div>
+        <div>
+          <div style="color:var(--text);font-weight:600;">Faculty</div>
+          <div>faculty_name / faculty123</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+
+</html>

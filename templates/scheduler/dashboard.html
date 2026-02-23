@@ -1,0 +1,343 @@
+{% extends 'scheduler/base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}{% if role == 'admin' %}Dashboard{% else %}My Dashboard{% endif %}{% endblock %}
+
+{% block content %}
+
+{% if role == 'admin' %}
+
+<!-- Stats row -->
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;">
+    <div style="background:#fff;border-radius:8px;padding:20px 24px;border-left:4px solid #3b82f6;">
+        <div style="font-size:28px;font-weight:700;color:#1e293b;">{{ total_faculty }}</div>
+        <div style="font-size:13px;color:#64748b;margin-top:4px;">Faculty Members</div>
+    </div>
+    <div style="background:#fff;border-radius:8px;padding:20px 24px;border-left:4px solid #10b981;">
+        <div style="font-size:28px;font-weight:700;color:#1e293b;">{{ total_courses }}</div>
+        <div style="font-size:13px;color:#64748b;margin-top:4px;">Courses</div>
+    </div>
+    <div style="background:#fff;border-radius:8px;padding:20px 24px;border-left:4px solid #f59e0b;">
+        <div style="font-size:28px;font-weight:700;color:#1e293b;">{{ total_rooms }}</div>
+        <div style="font-size:13px;color:#64748b;margin-top:4px;">Classrooms</div>
+    </div>
+    <div style="background:#fff;border-radius:8px;padding:20px 24px;border-left:4px solid #8b5cf6;">
+        <div style="font-size:28px;font-weight:700;color:#1e293b;">{{ total_slots }}</div>
+        <div style="font-size:13px;color:#64748b;margin-top:4px;">Scheduled Sessions</div>
+    </div>
+
+
+</div>
+
+<!-- Active version notice -->
+{% if active_version %}
+<div
+    style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px 20px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;">
+    <span style="color:#166534;font-size:14px;">Active schedule: <strong>Version {{ active_version.version_number
+            }}</strong> — {{ active_version.total_assignments }} sessions assigned</span>
+    <div style="display:flex;gap:8px;">
+        <a href="{% url 'timetable' %}"
+            style="font-size:13px;color:#15803d;text-decoration:none;border:1px solid #86efac;border-radius:6px;padding:5px 12px;">View
+            Timetable</a>
+        <a href="{% url 'export_timetable_pdf' %}"
+            style="font-size:13px;color:#15803d;text-decoration:none;border:1px solid #86efac;border-radius:6px;padding:5px 12px;">Export
+            PDF</a>
+    </div>
+</div>
+{% else %}
+<div
+    style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:14px 20px;margin-bottom:20px;font-size:14px;color:#92400e;">
+    No timetable generated yet. Upload data then click <strong>Generate Timetable</strong>.
+</div>
+{% endif %}
+
+{% if logs %}
+<!-- Charts side by side -->
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:20px;">
+    <div style="background:#fff;border-radius:8px;padding:20px;">
+        <div style="font-size:14px;font-weight:600;color:#1e293b;margin-bottom:16px;">Workload Distribution (hours/week)
+        </div>
+        <canvas id="workloadBarChart" height="180"></canvas>
+    </div>
+    <div style="background:#fff;border-radius:8px;padding:20px;">
+        <div style="font-size:14px;font-weight:600;color:#1e293b;margin-bottom:16px;">Utilization Share</div>
+        <canvas id="utilizationChart" height="180"></canvas>
+    </div>
+</div>
+
+<!-- Workload table -->
+<div style="background:#fff;border-radius:8px;overflow:hidden;margin-bottom:20px;">
+    <div
+        style="padding:16px 20px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:14px;font-weight:600;color:#1e293b;">Workload Details</span>
+        <a href="{% url 'export_workload_pdf' %}" style="font-size:12px;color:#3b82f6;text-decoration:none;">Export
+            PDF</a>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+            <tr style="background:#f8fafc;">
+                <th style="padding:10px 20px;text-align:left;color:#64748b;font-weight:500;">Faculty</th>
+                <th style="padding:10px 20px;text-align:left;color:#64748b;font-weight:500;">Dept</th>
+                <th style="padding:10px 16px;text-align:center;color:#64748b;font-weight:500;">Assigned</th>
+                <th style="padding:10px 16px;text-align:center;color:#64748b;font-weight:500;">Max</th>
+                <th style="padding:10px 20px;text-align:left;color:#64748b;font-weight:500;">Utilization</th>
+                <th style="padding:10px 16px;text-align:center;color:#64748b;font-weight:500;">Status</th>
+                <th style="padding:10px 16px;text-align:center;color:#64748b;font-weight:500;">PDF</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in logs %}
+            <tr style="border-top:1px solid #f1f5f9;">
+                <td style="padding:10px 20px;color:#1e293b;font-weight:500;">{{ log.faculty.name }}</td>
+                <td style="padding:10px 20px;color:#64748b;">{{ log.faculty.department|default:"—" }}</td>
+                <td style="padding:10px 16px;text-align:center;color:#1e293b;">{{ log.assigned_hours }}h</td>
+                <td style="padding:10px 16px;text-align:center;color:#64748b;">{{ log.max_hours }}h</td>
+                <td style="padding:10px 20px;">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <div style="flex:1;height:6px;background:#e2e8f0;border-radius:3px;max-width:80px;">
+                            {% if log.utilization_percent > 90 %}
+                            <div class="pct-bar" data-pct="{{ log.utilization_percent }}"
+                                style="height:6px;border-radius:3px;background:#ef4444;"></div>
+                            {% elif log.utilization_percent < 40 %} <div class="pct-bar"
+                                data-pct="{{ log.utilization_percent }}"
+                                style="height:6px;border-radius:3px;background:#f59e0b;">
+                        </div>
+                        {% else %}
+                        <div class="pct-bar" data-pct="{{ log.utilization_percent }}"
+                            style="height:6px;border-radius:3px;background:#10b981;"></div>
+                        {% endif %}
+                    </div>
+                    <span style="font-size:12px;color:#64748b;">{{ log.utilization_percent|floatformat:1 }}%</span>
+</div>
+</td>
+<td style="padding:10px 16px;text-align:center;">
+    {% if log.utilization_percent > 90 %}
+    <span style="font-size:11px;background:#fef2f2;color:#dc2626;padding:2px 8px;border-radius:4px;">Overloaded</span>
+    {% elif log.utilization_percent < 40 %} <span
+        style="font-size:11px;background:#fffbeb;color:#d97706;padding:2px 8px;border-radius:4px;">Underused</span>
+        {% else %}
+        <span style="font-size:11px;background:#f0fdf4;color:#16a34a;padding:2px 8px;border-radius:4px;">Balanced</span>
+        {% endif %}
+</td>
+<td style="padding:10px 16px;text-align:center;">
+    <a href="{% url 'export_faculty_pdf' log.faculty.id %}"
+        style="font-size:12px;color:#3b82f6;text-decoration:none;">PDF</a>
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+
+{% else %}
+<div style="background:#fff;border-radius:8px;padding:48px;text-align:center;">
+    <div style="font-size:40px;margin-bottom:12px;">📊</div>
+    <p style="color:#64748b;margin:0 0 16px;">No workload data yet. Generate a timetable first.</p>
+    <a href="{% url 'upload_page' %}"
+        style="font-size:13px;color:#3b82f6;text-decoration:none;border:1px solid #93c5fd;border-radius:6px;padding:7px 16px;">Upload
+        Data</a>
+</div>
+{% endif %}
+
+<!-- Version history -->
+<div style="background:#fff;border-radius:8px;overflow:hidden;">
+    <div style="padding:16px 20px;border-bottom:1px solid #f1f5f9;">
+        <span style="font-size:14px;font-weight:600;color:#1e293b;">Schedule History</span>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+            <tr style="background:#f8fafc;">
+                <th style="padding:10px 20px;text-align:left;color:#64748b;font-weight:500;">Version</th>
+                <th style="padding:10px 16px;text-align:center;color:#64748b;font-weight:500;">Status</th>
+                <th style="padding:10px 16px;text-align:center;color:#64748b;font-weight:500;">Sessions</th>
+                <th style="padding:10px 20px;text-align:left;color:#64748b;font-weight:500;">Created</th>
+                <th style="padding:10px 16px;text-align:center;color:#64748b;font-weight:500;">Active</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if versions %}
+            {% for v in versions %}
+            <tr style="border-top:1px solid #f1f5f9;">
+                <td style="padding:10px 20px;color:#1e293b;font-weight:600;">v{{ v.version_number }}</td>
+                <td style="padding:10px 16px;text-align:center;">
+                    {% if v.status == 'success' %}
+                    <span
+                        style="font-size:11px;background:#f0fdf4;color:#16a34a;padding:2px 8px;border-radius:4px;">Success</span>
+                    {% elif v.status == 'failed' %}
+                    <span
+                        style="font-size:11px;background:#fef2f2;color:#dc2626;padding:2px 8px;border-radius:4px;">Failed</span>
+                    {% else %}
+                    <span style="font-size:11px;background:#fffbeb;color:#d97706;padding:2px 8px;border-radius:4px;">{{
+                        v.status }}</span>
+                    {% endif %}
+                </td>
+                <td style="padding:10px 16px;text-align:center;color:#64748b;">{{ v.total_assignments }}</td>
+                <td style="padding:10px 20px;color:#64748b;">{{ v.created_at|date:"d M Y, H:i" }}</td>
+                <td style="padding:10px 16px;text-align:center;">
+                    {% if v.is_active %}<span style="font-size:11px;background:#eff6ff;color:#2563eb;padding:2px 8px;border-radius:4px;">Active</span>{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            {% else %}
+            <tr>
+                <td colspan="5" style="padding:32px;text-align:center;color:#94a3b8;">No versions yet.</td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+
+{% else %}
+<!-- Faculty Dashboard -->
+{% if faculty %}
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px;">
+    <div style="background:#fff;border-radius:8px;padding:20px 24px;border-left:4px solid #3b82f6;">
+        <div style="font-size:28px;font-weight:700;color:#1e293b;">{{ workload.assigned_hours|default:"0" }}h</div>
+        <div style="font-size:13px;color:#64748b;margin-top:4px;">Assigned This Week</div>
+    </div>
+    <div style="background:#fff;border-radius:8px;padding:20px 24px;border-left:4px solid #10b981;">
+        <div style="font-size:28px;font-weight:700;color:#1e293b;">{{ faculty.max_hours }}h</div>
+        <div style="font-size:13px;color:#64748b;margin-top:4px;">Max Allowed</div>
+    </div>
+    <div style="background:#fff;border-radius:8px;padding:20px 24px;border-left:4px solid #f59e0b;">
+        <div style="font-size:28px;font-weight:700;color:#1e293b;">{{
+            workload.utilization_percent|floatformat:1|default:"0" }}%</div>
+        <div style="font-size:13px;color:#64748b;margin-top:4px;">Utilization</div>
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 2fr;gap:16px;">
+    <!-- Profile -->
+    <div style="background:#fff;border-radius:8px;padding:20px;">
+        <div style="font-size:14px;font-weight:600;color:#1e293b;margin-bottom:16px;">My Profile</div>
+        <div style="display:flex;flex-direction:column;gap:12px;font-size:13px;">
+            <div>
+                <div style="color:#94a3b8;margin-bottom:2px;">Name</div>
+                <div style="color:#1e293b;font-weight:500;">{{ faculty.name }}</div>
+            </div>
+            <div>
+                <div style="color:#94a3b8;margin-bottom:2px;">Department</div>
+                <div style="color:#1e293b;">{{ faculty.department|default:"—" }}</div>
+            </div>
+            <div>
+                <div style="color:#94a3b8;margin-bottom:2px;">Employee ID</div>
+                <div style="color:#1e293b;">{{ faculty.employee_id|default:"—" }}</div>
+            </div>
+            <div>
+                <div style="color:#94a3b8;margin-bottom:2px;">Subjects</div>
+                <div style="color:#1e293b;">{{ faculty.subjects }}</div>
+            </div>
+        </div>
+        <a href="{% url 'export_faculty_pdf' faculty.id %}"
+            style="display:inline-block;margin-top:16px;font-size:12px;color:#3b82f6;text-decoration:none;border:1px solid #93c5fd;border-radius:6px;padding:5px 12px;">Download
+            My Schedule PDF</a>
+    </div>
+
+    <!-- Classes table -->
+    <div style="background:#fff;border-radius:8px;overflow:hidden;">
+        <div
+            style="padding:16px 20px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:14px;font-weight:600;color:#1e293b;">My Classes</span>
+            <a href="{% url 'timetable' %}" style="font-size:12px;color:#3b82f6;text-decoration:none;">Full
+                Timetable</a>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead>
+                <tr style="background:#f8fafc;">
+                    <th style="padding:10px 20px;text-align:left;color:#64748b;font-weight:500;">Day</th>
+                    <th style="padding:10px 16px;text-align:left;color:#64748b;font-weight:500;">Period</th>
+                    <th style="padding:10px 20px;text-align:left;color:#64748b;font-weight:500;">Course</th>
+                    <th style="padding:10px 20px;text-align:left;color:#64748b;font-weight:500;">Room</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in recent_entries %}
+                <tr style="border-top:1px solid #f1f5f9;">
+                    <td style="padding:10px 20px;color:#1e293b;">{{ entry.timeslot.day }}</td>
+                    <td style="padding:10px 16px;color:#64748b;">P{{ entry.timeslot.period }}<br><span
+                            style="font-size:11px;">{{ entry.timeslot.start_time|time:"H:i" }}–{{
+                            entry.timeslot.end_time|time:"H:i" }}</span></td>
+                    <td style="padding:10px 20px;color:#1e293b;font-weight:500;">{{ entry.course.course_name }}</td>
+                    <td style="padding:10px 20px;color:#64748b;">{{ entry.classroom.room_name }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" style="padding:32px;text-align:center;color:#94a3b8;">No classes scheduled yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% else %}
+<div
+    style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:16px 20px;font-size:14px;color:#92400e;">
+    Faculty profile not linked to your account. Please contact the admin.
+</div>
+{% endif %}
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+{% if role == 'admin' and logs %}
+<script id="chart-labels" type="application/json">{{ chart_labels|safe }}</script>
+<script id="chart-assigned" type="application/json">{{ chart_assigned|safe }}</script>
+<script id="chart-max" type="application/json">{{ chart_max|safe }}</script>
+<script id="chart-util" type="application/json">{{ chart_util|safe }}</script>
+
+<script>
+    const labels = JSON.parse(document.getElementById('chart-labels').textContent);
+    const assigned = JSON.parse(document.getElementById('chart-assigned').textContent);
+    const maxHrs = JSON.parse(document.getElementById('chart-max').textContent);
+    const util = JSON.parse(document.getElementById('chart-util').textContent);
+
+    new Chart(document.getElementById('workloadBarChart'), {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [
+                { label: 'Assigned hrs', data: assigned, backgroundColor: '#3b82f6', borderRadius: 4 },
+                { label: 'Max hrs', data: maxHrs, backgroundColor: '#e2e8f0', borderRadius: 4 }
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { labels: { font: { size: 11 } } } },
+            scales: {
+                x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+                y: { grid: { color: '#f1f5f9' }, ticks: { font: { size: 11 } } }
+            }
+        }
+    });
+
+    new Chart(document.getElementById('utilizationChart'), {
+        type: 'doughnut',
+        data: {
+            labels,
+            datasets: [{ data: util, backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'], borderWidth: 2, borderColor: '#fff' }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12 } } }
+        }
+    });
+
+    // Apply progress bar widths from data-pct (avoids template vars in CSS)
+    document.querySelectorAll('.pct-bar').forEach(function (el) {
+        el.style.width = Math.min(el.dataset.pct, 100) + '%';
+    });
+</script>
+{% endif %}
+
+<style>
+    /* Override dark theme for dashboard cards */
+    .page-content table {
+        color: #1e293b;
+    }
+
+    .page-content th {
+        border: none;
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,211 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}AI Faculty Scheduling System{% endblock %}</title>
+  <meta name="description" content="AI-Based Intelligent Faculty Workload and Scheduling System" />
+  <link rel="stylesheet" href="{% static 'css/styles.css' %}" />
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  {% block extra_head %}{% endblock %}
+</head>
+
+<body>
+
+  <!-- ── Sidebar ──────────────────────────────────────────────── -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">🎓</div>
+      <div class="logo-text">
+        AI <span>Faculty</span><br>Scheduler
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Main</div>
+      <a href="{% url 'dashboard' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+        <span class="nav-icon">📊</span> Dashboard
+      </a>
+      <a href="{% url 'timetable' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'timetable' %}active{% endif %}">
+        <span class="nav-icon">📅</span> Timetable
+      </a>
+
+      {% if request.user.is_staff or request.user.is_superuser %}
+      <div class="nav-section-label">Admin</div>
+      <a href="{% url 'upload_page' %}"
+        class="nav-link {% if 'upload' in request.resolver_match.url_name %}active{% endif %}">
+        <span class="nav-icon">📤</span> Upload Data
+      </a>
+      <a href="{% url 'manage_data' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'manage_data' %}active{% endif %}">
+        <span class="nav-icon">🗃️</span> Manage Data
+      </a>
+      <a href="{% url 'run_optimization' %}" class="nav-link"
+        onclick="return confirm('Run LP Optimizer? This may take a moment.');" style="display:none;">
+        <span class="nav-icon">⚡</span> Run Optimizer
+      </a>
+      {% endif %}
+
+      <div class="nav-section-label">Export</div>
+      <a href="{% url 'export_timetable_pdf' %}" class="nav-link">
+        <span class="nav-icon">📄</span> Timetable PDF
+      </a>
+      {% if request.user.is_staff %}
+      <a href="{% url 'export_workload_pdf' %}" class="nav-link">
+        <span class="nav-icon">📋</span> Workload PDF
+      </a>
+      {% endif %}
+
+      <div class="nav-section-label">Notifications</div>
+      <a href="{% url 'notifications_page' %}"
+        class="nav-link {% if request.resolver_match.url_name == 'notifications_page' %}active{% endif %}"
+        id="nav-notif-link">
+        <span class="nav-icon">🔔</span> Notifications
+        <span id="nav-notif-badge" class="badge badge-danger"
+          style="margin-left:auto;display:none;font-size:10px;padding:2px 6px;">0</span>
+      </a>
+
+      <div class="nav-section-label">System</div>
+      <a href="/admin/" class="nav-link" target="_blank">
+        <span class="nav-icon">⚙️</span> Django Admin
+      </a>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <div class="user-card">
+        <div class="user-avatar">{{ request.user.username|first|upper }}</div>
+        <div class="user-info">
+          <div class="user-name">{{ request.user.get_full_name|default:request.user.username }}</div>
+          <div class="user-role">{% if request.user.is_staff %}Administrator{% else %}Faculty{% endif %}</div>
+        </div>
+      </div>
+      <a href="{% url 'logout' %}" class="btn btn-outline btn-sm"
+        style="width:100%;justify-content:center;margin-top:10px;">
+        🚪 Logout
+      </a>
+    </div>
+  </aside>
+
+  <!-- ── Main Content ─────────────────────────────────────────── -->
+  <div class="main-content">
+    <header class="topbar">
+      <div class="topbar-title">{% block page_title %}Dashboard{% endblock %}</div>
+      <div class="topbar-actions">
+        {% if request.user.is_staff %}
+        <form method="post" action="{% url 'run_optimization' %}" style="margin:0;">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-success btn-sm"
+            onclick="this.disabled=true; this.textContent='⏳ Running...'; this.form.submit();">
+            ⚡ Generate Timetable
+          </button>
+        </form>
+        {% endif %}
+        <!-- Notification Bell -->
+        <a href="{% url 'notifications_page' %}" id="notif-bell-btn"
+          style="position:relative;display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:10px;background:#f1f5f9;border:1px solid var(--border);text-decoration:none;font-size:18px;transition:all 0.2s;"
+          onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
+          🔔
+          <span id="notif-bell-badge"
+            style="display:none;position:absolute;top:-4px;right:-4px;background:#ef5350;color:#fff;font-size:10px;font-weight:700;min-width:16px;height:16px;border-radius:50%;display:none;align-items:center;justify-content:center;padding:0 3px;">
+            0
+          </span>
+        </a>
+        <span class="badge badge-info">v2024</span>
+      </div>
+    </header>
+
+    <main class="page-content animate-in">
+      <!-- Django Messages -->
+      {% if messages %}
+      <div style="margin-bottom:20px;">
+        {% for message in messages %}
+        <div
+          class="alert alert-{% if message.tags == 'error' %}error{% elif message.tags == 'success' %}success{% elif message.tags == 'warning' %}warning{% else %}info{% endif %}">
+          {% if message.tags == 'success' %}✅{% elif message.tags == 'error' %}❌{% elif message.tags == 'warning' %}⚠️{%
+          else %}ℹ️{% endif %}
+          {{ message }}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <script>
+    // Mobile sidebar toggle
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') document.getElementById('sidebar').classList.remove('open');
+    });
+
+    // ── Chrome Notification System ───────────────────────────────────────────
+    let lastSeenNotifId = 0;
+
+    function getCookie(name) {
+      const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+      return v ? v[2] : null;
+    }
+
+    function updateBadge(count) {
+      const bell = document.getElementById('notif-bell-badge');
+      const nav = document.getElementById('nav-notif-badge');
+      if (!bell) return;
+      if (count > 0) {
+        bell.textContent = count > 99 ? '99+' : count;
+        bell.style.display = 'flex';
+        if (nav) { nav.textContent = count; nav.style.display = 'inline-block'; }
+      } else {
+        bell.style.display = 'none';
+        if (nav) nav.style.display = 'none';
+      }
+    }
+
+    function showChromeNotif(title, body, notifId) {
+      if (Notification.permission !== 'granted') return;
+      const n = new Notification(title, {
+        body: body,
+        icon: '/static/css/favicon.png',
+        tag: 'faculty-scheduler-' + notifId,
+        requireInteraction: false,
+      });
+      n.onclick = () => { window.focus(); window.location.href = '/notifications/'; n.close(); };
+      setTimeout(() => n.close(), 8000);
+    }
+
+    async function pollNotifications() {
+      try {
+        const res = await fetch('/api/notifications/?since=' + lastSeenNotifId);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        updateBadge(data.unread_count);
+
+        data.notifications.forEach(n => {
+          if (n.id > lastSeenNotifId) {
+            showChromeNotif(n.title, n.message, n.id);
+            lastSeenNotifId = Math.max(lastSeenNotifId, n.id);
+          }
+        });
+      } catch (e) { /* server offline, ignore */ }
+    }
+
+    // Request Chrome permission on load
+    document.addEventListener('DOMContentLoaded', () => {
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+      // Initial poll + every 15 seconds
+      pollNotifications();
+      setInterval(pollNotifications, 15000);
+    });
+  </script>
+  {% block extra_js %}{% endblock %}
+</body>
+
+</html>

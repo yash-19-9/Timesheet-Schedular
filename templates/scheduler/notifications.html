@@ -1,0 +1,168 @@
+{% extends 'scheduler/base.html' %}
+{% block title %}Notifications — AI Faculty Scheduler{% endblock %}
+{% block page_title %}🔔 Notifications{% endblock %}
+
+{% block content %}
+
+<!-- Header with mark all read -->
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+    <div>
+        {% if unread_count > 0 %}
+        <span class="badge badge-danger" style="font-size:14px;padding:6px 14px;">{{ unread_count }} Unread</span>
+        {% else %}
+        <span class="badge badge-success" style="font-size:14px;padding:6px 14px;">All caught up ✓</span>
+        {% endif %}
+    </div>
+    {% if unread_count > 0 %}
+    <a href="{% url 'mark_all_read' %}" class="btn btn-sm"
+        style="background:#f1f5f9;color:var(--text);border:1px solid var(--border);">✓ Mark all as read</a>
+    {% endif %}
+</div>
+
+{% if is_admin and pending_requests %}
+<!-- Pending Unavailability Requests (Admin Only) -->
+<div class="card" style="margin-bottom:24px;border-left:4px solid #ff7043;">
+    <div class="card-header">
+        <span class="card-title">🚫 Pending Reassignment Requests</span>
+        <span class="badge badge-danger">{{ pending_requests|length }} pending</span>
+    </div>
+    <div class="card-body" style="padding:0;">
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Faculty</th>
+                        <th>Course</th>
+                        <th>Time Slot</th>
+                        <th>Reason</th>
+                        <th>Requested</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for req in pending_requests %}
+                    <tr>
+                        <td><strong>{{ req.faculty.name }}</strong></td>
+                        <td>{{ req.timetable_entry.course.course_name }}</td>
+                        <td>{{ req.timetable_entry.timeslot.day }} · P{{ req.timetable_entry.timeslot.period }}</td>
+                        <td style="max-width:200px;">{{ req.reason|default:"—"|truncatechars:60 }}</td>
+                        <td style="font-size:12px;color:var(--text-muted);">{{ req.created_at|date:"d M, H:i" }}</td>
+                        <td>
+                            <a href="{% url 'reassign_faculty' req.id %}" class="btn btn-primary btn-sm">🔄 Reassign</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- All Notifications -->
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">📋 Notification History</span>
+    </div>
+    <div class="card-body" style="padding:0;">
+        {% if notifications %}
+        <div style="display:flex;flex-direction:column;">
+            {% for notif in notifications %}
+            <div class="notif-item {% if not notif.is_read %}notif-unread{% endif %}" id="notif-{{ notif.id }}">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+                    <div style="flex:1;">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                            {% if notif.notif_type == 'unavailability_request' %}
+                            <span style="font-size:18px;">🚫</span>
+                            {% elif notif.notif_type == 'reassignment_done' %}
+                            <span style="font-size:18px;">✅</span>
+                            {% else %}
+                            <span style="font-size:18px;">📢</span>
+                            {% endif %}
+                            <strong style="font-size:14px;">{{ notif.title }}</strong>
+                            {% if not notif.is_read %}
+                            <span class="badge badge-info" style="font-size:10px;padding:2px 8px;">NEW</span>
+                            {% endif %}
+                        </div>
+                        <p style="margin:0 0 6px;font-size:13px;color:var(--text-muted);line-height:1.5;">{{
+                            notif.message }}</p>
+                        <div style="font-size:11px;color:var(--text-muted);">
+                            {% if notif.sender %}From: {{ notif.sender.username }} · {% endif %}
+                            {{ notif.created_at|date:"d M Y, H:i" }}
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:8px;flex-shrink:0;">
+                        {% if is_admin and notif.related_unavailability_id and notif.notif_type ==
+                        'unavailability_request' %}
+                        <a href="{% url 'reassign_faculty' notif.related_unavailability_id %}"
+                            class="btn btn-primary btn-sm">🔄 Reassign</a>
+                        {% endif %}
+                        {% if not notif.is_read %}
+                        <button data-notif-id="{{ notif.id }}" class="btn btn-sm mark-read-btn"
+                            style="background:#f1f5f9;color:var(--text);border:1px solid var(--border);">✓ Read</button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div style="text-align:center;padding:64px;color:var(--text-muted);">
+            <div style="font-size:64px;margin-bottom:12px;">🔔</div>
+            <p>No notifications yet.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.mark-read-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var notifId = btn.getAttribute('data-notif-id');
+                fetch('/api/notifications/' + notifId + '/read/', {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': getCookie('csrftoken'), 'Content-Type': 'application/json' }
+                }).then(function (r) { return r.json(); }).then(function () {
+                    var item = document.getElementById('notif-' + notifId);
+                    if (item) item.classList.remove('notif-unread');
+                    btn.remove();
+                    // Update badge
+                    var badge = document.querySelector('.badge-danger');
+                    if (badge) {
+                        var count = parseInt(badge.textContent) - 1;
+                        if (count <= 0) badge.remove(); else badge.textContent = count + ' Unread';
+                    }
+                });
+            });
+        });
+    });
+    function getCookie(name) {
+        var v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+        return v ? v[2] : null;
+    }
+</script>
+<style>
+    .notif-item {
+        padding: 16px 24px;
+        border-bottom: 1px solid var(--border);
+        transition: background 0.2s;
+    }
+
+    .notif-item:last-child {
+        border-bottom: none;
+    }
+
+    .notif-item:hover {
+        background: #f8fafc;
+    }
+
+    .notif-unread {
+        background: #eff6ff;
+        border-left: 3px solid #3b82f6;
+    }
+</style>
+{% endblock %}

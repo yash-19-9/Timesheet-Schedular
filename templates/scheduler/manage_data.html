@@ -1,0 +1,233 @@
+{% extends 'scheduler/base.html' %}
+{% block title %}Manage Data — AI Faculty Scheduler{% endblock %}
+{% block page_title %}🗃️ Manage Data{% endblock %}
+
+{% block content %}
+
+<!-- Tabs -->
+<div style="display:flex;gap:8px;margin-bottom:24px;border-bottom:1px solid var(--border);padding-bottom:0;">
+    <button class="tab-btn active" onclick="showTab('faculty')">👨‍🏫 Faculty ({{ faculties|length }})</button>
+    <button class="tab-btn" onclick="showTab('courses')">📚 Courses ({{ courses|length }})</button>
+    <button class="tab-btn" onclick="showTab('classrooms')">🏫 Classrooms ({{ classrooms|length }})</button>
+    <button class="tab-btn" onclick="showTab('timeslots')">⏰ Timeslots ({{ timeslots|length }})</button>
+</div>
+
+<!-- Faculty Tab -->
+<div id="tab-faculty" class="tab-content">
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Faculty Members</span>
+            <a href="{% url 'upload_page' %}" class="btn btn-primary btn-sm">+ Upload More</a>
+        </div>
+        <div class="card-body" style="padding:0;">
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Name</th>
+                            <th>ID</th>
+                            <th>Department</th>
+                            <th>Subjects</th>
+                            <th>Max Hrs</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for f in faculties %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td><strong>{{ f.name }}</strong><br><span
+                                    style="font-size:11px;color:var(--text-muted);">{{ f.email }}</span></td>
+                            <td>{{ f.employee_id|default:"—" }}</td>
+                            <td>{{ f.department|default:"—" }}</td>
+                            <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{
+                                f.subjects }}</td>
+                            <td>{{ f.max_hours }}h</td>
+                            <td>
+                                {% if f.is_active %}<span class="badge badge-success">● Active</span>
+                                {% else %}<span class="badge badge-danger">● Inactive</span>{% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" style="text-align:center;color:var(--text-muted);padding:32px;">No faculty
+                                data. <a href="{% url 'upload_page' %}">Upload now</a></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Courses Tab -->
+<div id="tab-courses" class="tab-content" style="display:none;">
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Courses</span>
+            <a href="{% url 'upload_page' %}" class="btn btn-primary btn-sm">+ Upload More</a>
+        </div>
+        <div class="card-body" style="padding:0;">
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Code</th>
+                            <th>Course Name</th>
+                            <th>Department</th>
+                            <th>Semester</th>
+                            <th>Hrs/Week</th>
+                            <th>Assigned Faculty</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in courses %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td><code>{{ c.course_code|default:"—" }}</code></td>
+                            <td><strong>{{ c.course_name }}</strong></td>
+                            <td>{{ c.department|default:"—" }}</td>
+                            <td>Sem {{ c.semester }}</td>
+                            <td><span class="badge badge-info">{{ c.hours_required }}h</span></td>
+                            <td>{% if c.assigned_faculty %}{{ c.assigned_faculty.name }}{% else %}<span
+                                    style="color:var(--text-muted)">Unassigned</span>{% endif %}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" style="text-align:center;color:var(--text-muted);padding:32px;">No courses.
+                                <a href="{% url 'upload_page' %}">Upload now</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Classrooms Tab -->
+<div id="tab-classrooms" class="tab-content" style="display:none;">
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Classrooms</span>
+            <a href="{% url 'upload_page' %}" class="btn btn-primary btn-sm">+ Upload More</a>
+        </div>
+        <div class="card-body" style="padding:0;">
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Room Name</th>
+                            <th>Building</th>
+                            <th>Capacity</th>
+                            <th>Type</th>
+                            <th>Available</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in classrooms %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td><strong>{{ r.room_name }}</strong></td>
+                            <td>{{ r.building|default:"—" }}</td>
+                            <td>{{ r.capacity }} students</td>
+                            <td><span class="badge badge-info">{{ r.get_room_type_display }}</span></td>
+                            <td>
+                                {% if r.is_available %}<span class="badge badge-success">✔ Yes</span>
+                                {% else %}<span class="badge badge-danger">✗ No</span>{% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" style="text-align:center;color:var(--text-muted);padding:32px;">No
+                                classrooms. <a href="{% url 'upload_page' %}">Upload now</a></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Timeslots Tab -->
+<div id="tab-timeslots" class="tab-content" style="display:none;">
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Time Slots</span>
+            <a href="/admin/scheduler/timeslot/add/" class="btn btn-primary btn-sm" target="_blank">+ Add Slot</a>
+        </div>
+        <div class="card-body" style="padding:0;">
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Day</th>
+                            <th>Period</th>
+                            <th>Start Time</th>
+                            <th>End Time</th>
+                            <th>Label</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ts in timeslots %}
+                        <tr>
+                            <td><strong>{{ ts.day }}</strong></td>
+                            <td>Period {{ ts.period }}</td>
+                            <td>{{ ts.start_time|time:"H:i" }}</td>
+                            <td>{{ ts.end_time|time:"H:i" }}</td>
+                            <td>{{ ts.label|default:"—" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" style="text-align:center;color:var(--text-muted);padding:32px;">No timeslots
+                                defined. <a href="/admin/scheduler/timeslot/" target="_blank">Add via Admin</a></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function showTab(name) {
+        document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        document.getElementById('tab-' + name).style.display = 'block';
+        event.target.classList.add('active');
+    }
+</script>
+<style>
+    .tab-btn {
+        padding: 10px 20px;
+        background: none;
+        border: none;
+        border-bottom: 2px solid transparent;
+        color: var(--text-muted);
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        font-family: inherit;
+        transition: all 0.2s;
+    }
+
+    .tab-btn:hover {
+        color: var(--text);
+    }
+
+    .tab-btn.active {
+        color: var(--accent);
+        border-bottom-color: var(--accent);
+    }
+</style>
+{% endblock %}

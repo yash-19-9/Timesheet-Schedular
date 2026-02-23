@@ -1,0 +1,191 @@
+{% extends 'scheduler/base.html' %}
+{% load scheduler_tags %}
+{% block title %}Timetable — AI Faculty Scheduler{% endblock %}
+{% block page_title %}📅 Generated Timetable{% endblock %}
+
+{% block content %}
+
+<!-- Version Selection Bar -->
+<div class="card" style="margin-bottom:20px;">
+    <div class="card-body"
+        style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:16px 24px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+            {% if version %}
+            <span class="badge badge-success">📅 Schedule v{{ version.version_number }}</span>
+            <span style="color:var(--text-muted);font-size:13px;">{{ version.description }}</span>
+            {% if version.status == 'success' %}
+            <span class="badge badge-success">{{ version.status }}</span>
+            {% else %}
+            <span class="badge badge-danger">{{ version.status }}</span>
+            {% endif %}
+            {% else %}
+            <span class="badge badge-warning">No Schedule Generated</span>
+            {% endif %}
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            {% if version %}
+            <a href="{% url 'export_timetable_pdf' %}?version={{ version.version_number }}"
+                class="btn btn-primary btn-sm">📄 Download PDF</a>
+            {% endif %}
+            {% if is_admin %}
+            <form method="post" action="{% url 'run_optimization' %}" style="margin:0;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-success btn-sm"
+                    onclick="this.disabled=true;this.textContent='⏳';this.form.submit();">⚡ Re-generate</button>
+            </form>
+            {% endif %}
+            {% if versions %}
+            <select onchange="location='?version='+this.value;" class="form-control"
+                style="width:160px;padding:6px 10px;font-size:13px;">
+                <option value="">Switch Version</option>
+                {% for v in versions %}
+                {% if version and version.version_number == v.version_number %}
+                <option value="{{ v.version_number }}" selected>v{{ v.version_number }} ({{ v.status }})</option>
+                {% else %}
+                <option value="{{ v.version_number }}">v{{ v.version_number }} ({{ v.status }})</option>
+                {% endif %}
+                {% endfor %}
+            </select>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if not version %}
+<div class="card">
+    <div class="card-body" style="text-align:center;padding:64px;">
+        <div style="font-size:72px;">📅</div>
+        <h2 style="margin:16px 0 8px;">No Timetable Yet</h2>
+        <p style="color:var(--text-muted);margin-bottom:24px;">Upload data then run the LP Optimizer to generate your
+            timetable.</p>
+        <a href="{% url 'upload_page' %}" class="btn btn-primary">📤 Upload Data</a>
+    </div>
+</div>
+{% else %}
+
+<!-- Legend -->
+<div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
+    <div style="display:flex;align-items:center;gap:6px;font-size:12px;">
+        <div
+            style="width:14px;height:14px;border-radius:3px;background:linear-gradient(135deg,#eef2ff,#e0e7ff);border:1px solid #c7d2fe;">
+        </div>
+        Class Session
+    </div>
+    {% if current_faculty %}
+    <div style="display:flex;align-items:center;gap:6px;font-size:12px;">
+        <div style="width:14px;height:14px;border-radius:3px;background:#f0fdf4;border:1px solid var(--accent);">
+        </div>
+        My Classes
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);">
+        <span style="font-size:14px;">🚫</span> Click "Not Free" to report unavailability
+    </div>
+    {% endif %}
+</div>
+
+<!-- Timetable Grid -->
+<div class="card">
+    <div class="card-body" style="padding:0;">
+        <div class="timetable-grid">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="tt-header-cell" style="min-width:100px;">Day</th>
+                        {% for period in periods %}
+                        <th class="tt-header-cell">Period {{ period }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for day in days %}
+                    <tr>
+                        <td class="tt-day-cell">{{ day }}</td>
+                        {% for period in periods %}
+                        <td class="tt-cell">
+                            {% get_day_period grid day period as cell_entries %}
+                            {% if cell_entries %}
+                            {% for entry in cell_entries %}
+                            {% if current_faculty and entry.faculty.id == current_faculty.id %}
+                            <div class="tt-entry my-class">
+                                {% else %}
+                                <div class="tt-entry">
+                                    {% endif %}
+                                    <div class="tt-course">{{ entry.course.course_name|truncatechars:20 }}</div>
+                                    <div class="tt-faculty">👤 {{ entry.faculty.name|truncatechars:18 }}</div>
+                                    <div class="tt-room">🏫 {{ entry.classroom.room_name }}</div>
+                                    {% if current_faculty and entry.faculty.id == current_faculty.id %}
+                                    <div class="not-free-wrap" style="margin-top:6px;">
+                                        <button type="button" class="btn-not-free"
+                                            onclick="toggleNotFree('{{ entry.id }}')">🚫 Not Free</button>
+                                        <form id="nf-form-{{ entry.id }}" method="post"
+                                            action="{% url 'mark_unavailable' entry.id %}"
+                                            style="display:none;margin-top:6px;">
+                                            {% csrf_token %}
+                                            <textarea name="reason" placeholder="Reason (optional)" rows="2"
+                                                style="width:100%;font-size:11px;padding:4px 6px;border-radius:6px;border:1px solid var(--border);background:#fff;color:var(--text);resize:none;box-sizing:border-box;"></textarea>
+                                            <button type="submit"
+                                                style="margin-top:4px;width:100%;padding:4px;background:#ef5350;border:none;color:#fff;border-radius:6px;font-size:11px;cursor:pointer;">Confirm</button>
+                                        </form>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                                {% else %}
+                                <div class="tt-empty">—</div>
+                                {% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Summary Statistics -->
+<div class="stats-grid" style="margin-top:24px;">
+    <div class="stat-card">
+        <div class="stat-value" style="color:#4fc3f7;">{{ version.total_assignments }}</div>
+        <div class="stat-label">Total Sessions Scheduled</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color:#81c784;">{{ days|length }}</div>
+        <div class="stat-label">Working Days</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color:#ffb74d;">{{ periods|length }}</div>
+        <div class="stat-label">Periods Per Day</div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function toggleNotFree(entryId) {
+        const form = document.getElementById('nf-form-' + entryId);
+        if (form) form.style.display = (form.style.display === 'none' || form.style.display === '') ? 'block' : 'none';
+    }
+</script>
+<style>
+    .btn-not-free {
+        width: 100%;
+        padding: 3px 6px;
+        font-size: 11px;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #dc2626;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-family: inherit;
+    }
+
+    .btn-not-free:hover {
+        background: #fee2e2;
+        color: #b91c1c;
+    }
+</style>
+{% endblock %}

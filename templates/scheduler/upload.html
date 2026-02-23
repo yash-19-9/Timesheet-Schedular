@@ -1,0 +1,148 @@
+{% extends 'scheduler/base.html' %}
+{% block title %}Upload Data — AI Faculty Scheduler{% endblock %}
+{% block page_title %}📤 Upload Excel Data{% endblock %}
+
+{% block content %}
+
+<p style="color:var(--text-muted);margin-bottom:24px;">
+    Upload Excel files to import Faculty, Courses, and Classrooms data into the system.
+    Download the sample templates below before uploading.
+</p>
+
+<div class="upload-grid">
+
+    <!-- Faculty Upload -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">👨‍🏫 Faculty Data</span>
+            <span class="badge badge-info">Step 1</span>
+        </div>
+        <div class="card-body">
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">
+                Required columns: <code>name, subjects, max_hours, employee_id, department, email</code>
+            </p>
+            <form method="post" action="{% url 'upload_faculty' %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="file-upload-area" onclick="document.getElementById('faculty_file').click()">
+                    <div class="upload-icon">📊</div>
+                    <p>Click to choose faculty_upload.xlsx</p>
+                    <p style="font-size:11px;margin-top:4px;">.xlsx or .xls files only</p>
+                </div>
+                <input type="file" id="faculty_file" name="excel_file" accept=".xlsx,.xls" style="display:none"
+                    onchange="updateLabel(this, 'faculty_file_label')">
+                <p id="faculty_file_label" style="font-size:12px;color:var(--accent);margin:8px 0;min-height:18px;"></p>
+                <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:8px;">
+                    📤 Upload Faculty
+                </button>
+            </form>
+
+            <div
+                style="margin-top:16px;padding:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;">
+                <strong style="color:var(--accent);">Sample Row:</strong><br>
+                <code
+                    style="color:var(--text-muted);">Dr. Sharma, Math,Physics, 18, F001, Science, sharma@college.edu</code>
+            </div>
+        </div>
+    </div>
+
+    <!-- Courses Upload -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">📚 Courses Data</span>
+            <span class="badge badge-info">Step 2</span>
+        </div>
+        <div class="card-body">
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">
+                Required columns: <code>course_name, hours_required, course_code, department, semester</code>
+            </p>
+            <form method="post" action="{% url 'upload_courses' %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="file-upload-area" onclick="document.getElementById('courses_file').click()">
+                    <div class="upload-icon">📖</div>
+                    <p>Click to choose courses_upload.xlsx</p>
+                    <p style="font-size:11px;margin-top:4px;">.xlsx or .xls files only</p>
+                </div>
+                <input type="file" id="courses_file" name="excel_file" accept=".xlsx,.xls" style="display:none"
+                    onchange="updateLabel(this, 'courses_file_label')">
+                <p id="courses_file_label" style="font-size:12px;color:var(--accent);margin:8px 0;min-height:18px;"></p>
+                <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:8px;">
+                    📤 Upload Courses
+                </button>
+            </form>
+
+            <div
+                style="margin-top:16px;padding:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;">
+                <strong style="color:var(--accent);">Sample Row:</strong><br>
+                <code style="color:var(--text-muted);">Mathematics, 4, MATH101, Science, 1</code>
+            </div>
+        </div>
+    </div>
+
+    <!-- Classrooms Upload -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">🏫 Classrooms Data</span>
+            <span class="badge badge-info">Step 3</span>
+        </div>
+        <div class="card-body">
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">
+                Required columns: <code>room_name, capacity, building, room_type</code>
+                <br>room_type: lecture | lab | seminar | tutorial
+            </p>
+            <form method="post" action="{% url 'upload_classrooms' %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="file-upload-area" onclick="document.getElementById('rooms_file').click()">
+                    <div class="upload-icon">🏛️</div>
+                    <p>Click to choose classrooms_upload.xlsx</p>
+                    <p style="font-size:11px;margin-top:4px;">.xlsx or .xls files only</p>
+                </div>
+                <input type="file" id="rooms_file" name="excel_file" accept=".xlsx,.xls" style="display:none"
+                    onchange="updateLabel(this, 'rooms_file_label')">
+                <p id="rooms_file_label" style="font-size:12px;color:var(--accent);margin:8px 0;min-height:18px;"></p>
+                <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:8px;">
+                    📤 Upload Classrooms
+                </button>
+            </form>
+
+            <div
+                style="margin-top:16px;padding:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;">
+                <strong style="color:var(--accent);">Sample Row:</strong><br>
+                <code style="color:var(--text-muted);">Room 101, 60, Block A, lecture</code>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Generate Timetable CTA -->
+<div class="card" style="margin-top:28px;border-color:rgba(76,175,80,0.3);">
+    <div class="card-body" style="text-align:center;padding:36px;">
+        <div style="font-size:48px;margin-bottom:12px;">⚡</div>
+        <h3 style="margin-bottom:8px;">Ready to Generate Timetable?</h3>
+        <p style="color:var(--text-muted);margin-bottom:20px;">
+            After uploading all data, click below to run the Linear Programming optimizer.
+        </p>
+        <form method="post" action="{% url 'run_optimization' %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-success"
+                onclick="this.disabled=true; this.textContent='⏳ Generating...'; this.form.submit();"
+                style="font-size:16px;padding:14px 32px;">
+                ⚡ Generate Timetable with LP Optimizer
+            </button>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function updateLabel(input, labelId) {
+        const label = document.getElementById(labelId);
+        label.textContent = input.files[0] ? '✅ Selected: ' + input.files[0].name : '';
+        // Change border color of the area
+        const area = input.previousElementSibling;
+        if (input.files[0]) area.style.borderColor = 'var(--accent)';
+    }
+</script>
+{% endblock %}

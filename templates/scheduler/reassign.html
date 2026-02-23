@@ -1,0 +1,82 @@
+{% extends 'scheduler/base.html' %}
+{% block title %}Reassign Faculty — AI Faculty Scheduler{% endblock %}
+{% block page_title %}🔄 Reassign Faculty{% endblock %}
+
+{% block content %}
+<div style="max-width:680px;margin:0 auto;">
+
+    <!-- Info card about the session -->
+    <div class="card" style="margin-bottom:20px;border-left:4px solid var(--danger,#ef5350);">
+        <div class="card-body" style="padding:20px 24px;">
+            <h3 style="margin:0 0 12px;color:#dc2626;">🚫 Unavailability Report</h3>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:14px;">
+                <div><span style="color:var(--text-muted);">Faculty:</span><br><strong>{{ unavail.faculty.name
+                        }}</strong></div>
+                <div><span style="color:var(--text-muted);">Course:</span><br><strong>{{ entry.course.course_name
+                        }}</strong></div>
+                <div><span style="color:var(--text-muted);">Time Slot:</span><br><strong>{{ entry.timeslot.day }} —
+                        Period {{ entry.timeslot.period }}</strong><br><span
+                        style="font-size:12px;color:var(--text-muted);">{{ entry.timeslot.start_time|time:"H:i" }}–{{
+                        entry.timeslot.end_time|time:"H:i" }}</span></div>
+                <div><span style="color:var(--text-muted);">Classroom:</span><br><strong>{{ entry.classroom.room_name
+                        }}</strong></div>
+            </div>
+            {% if unavail.reason %}
+            <div
+                style="margin-top:12px;padding:10px 14px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:13px;color:#991b1b;">
+                <strong>Reason:</strong> {{ unavail.reason }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Reassignment form -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">Select Replacement Faculty</span>
+        </div>
+        <div class="card-body" style="padding:24px;">
+            {% if available_faculty %}
+            <form method="post" action="{% url 'reassign_faculty' unavail.id %}">
+                {% csrf_token %}
+                <p style="color:var(--text-muted);font-size:13px;margin-bottom:18px;">
+                    Only faculty <strong>not already scheduled</strong> in this time slot are shown.
+                </p>
+                <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:24px;">
+                    {% for f in available_faculty %}
+                    <label
+                        style="display:flex;align-items:center;gap:12px;padding:14px 16px;background:#f8fafc;border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:all 0.2s;"
+                        onmouseover="this.style.borderColor='var(--accent)'"
+                        onmouseout="this.style.borderColor='var(--border)'">
+                        <input type="radio" name="new_faculty_id" value="{{ f.id }}" required
+                            style="accent-color:var(--accent);width:16px;height:16px;">
+                        <div>
+                            <div style="font-weight:600;">{{ f.name }}</div>
+                            <div style="font-size:12px;color:var(--text-muted);">{{ f.department }} · Max {{ f.max_hours
+                                }}h/week · {{ f.subjects|truncatechars:50 }}</div>
+                        </div>
+                    </label>
+                    {% endfor %}
+                </div>
+                <div style="display:flex;gap:12px;">
+                    <button type="submit" class="btn btn-success" style="flex:1;"
+                        onclick="this.disabled=true;this.textContent='Reassigning...';this.form.submit();">
+                        ✅ Confirm Reassignment
+                    </button>
+                    <a href="{% url 'notifications_page' %}" class="btn"
+                        style="flex:0.4;background:#f1f5f9;color:var(--text);border:1px solid var(--border);">Cancel</a>
+                </div>
+            </form>
+            {% else %}
+            <div style="text-align:center;padding:40px;color:var(--text-muted);">
+                <div style="font-size:48px;margin-bottom:12px;">😔</div>
+                <p>No other faculty are free during this time slot.</p>
+                <p style="font-size:13px;">Consider dismissing the request or adjusting the timetable manually.</p>
+                <a href="{% url 'notifications_page' %}" class="btn btn-primary" style="margin-top:12px;">← Back</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}
